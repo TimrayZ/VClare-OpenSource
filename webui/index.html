@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VClare Arbitration</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+        </span>
+        <div class="brand-text">
+          <strong>VClare</strong>
+          <span>Arbitration console</span>
+        </div>
+      </div>
+      <div class="topbar-meta">
+        <span class="pill" id="pending-pill">0 pending</span>
+        <button class="btn btn-ghost" id="btn-clear" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          Clear log
+        </button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <aside class="panel queue">
+        <div class="panel-head">
+          <h2>Confirmation queue</h2>
+          <span class="muted" id="queue-count">0 items</span>
+        </div>
+        <ul class="queue-list" id="queue-list"></ul>
+        <div class="queue-legend">
+          <span class="dot dot-spec"></span> Spec-Level
+          <span class="dot dot-sim"></span> Sim-Level
+        </div>
+      </aside>
+
+      <main class="panel detail" id="detail" aria-live="polite"></main>
+
+      <aside class="panel log">
+        <div class="panel-head">
+          <h2>Decision log</h2>
+          <span class="muted" id="log-count">0 entries</span>
+        </div>
+        <ul class="log-list" id="log-list"></ul>
+        <p class="log-empty" id="log-empty">No decisions recorded yet.</p>
+      </aside>
+    </div>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>

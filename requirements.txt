@@ -1,0 +1,6 @@
+# The framework, the offline demo, the web console and the tests use only the
+# Python standard library, so no packages are required for the default path.
+#
+# The LLM stages talk to any OpenAI-compatible endpoint through the standard
+# library client in vclare/llm.py. Add a provider SDK here only if you prefer
+# to replace that client.

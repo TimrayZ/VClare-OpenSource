@@ -1,0 +1,89 @@
+{
+  "note": "Synthetic demonstration data. It contains no benchmark tasks, no generated experiment candidates and no golden testbenches.",
+  "spec_level": [
+    {
+      "task_id": "demo_counter_contradiction",
+      "defect_type": "contradictory",
+      "spec": "Implement a 4-bit synchronous up counter.\n\n- q increments by one on every rising edge of clk.\n- reset is active-high and synchronous: when reset is 1, q is cleared to 0 on the next rising edge of clk.\n- reset is active-low and asynchronous: when reset is 0, q is cleared to 0 immediately.\n- q saturates at 4'b1111 and does not wrap around.",
+      "pairs": [
+        {
+          "index": 1,
+          "a1": "reset is active-high and synchronous: when reset is 1, q is cleared to 0 on the next rising edge of clk.",
+          "a2": "reset is active-low and asynchronous: when reset is 0, q is cleared to 0 immediately.",
+          "defect_type": "contradictory",
+          "rationale": "The two clauses disagree on the reset polarity and on the reset timing."
+        },
+        {
+          "index": 2,
+          "a1": "q saturates at 4'b1111 and does not wrap around.",
+          "a2": "q saturates at 4'b1111 and does not wrap around.",
+          "defect_type": "vague",
+          "rationale": "Overflow handling is described but the same statement is repeated, so it cannot be arbitrated as a pair."
+        }
+      ],
+      "expected_decision": "source1"
+    }
+  ],
+  "sim_level": [
+    {
+      "task_id": "demo_arbiter_tiebreak",
+      "defect_type": "incomplete",
+      "spec": "Implement a 4-request round-robin arbiter with a synchronous active-high reset. grant is one-hot. The grant is registered and advances once per clock cycle. Asserting reset clears the grant.",
+      "test_cases": ["t1", "t2", "t3", "t4", "t5", "t6", "t7"],
+      "test_case_details": {
+        "t1": {"inputs": "reset=1", "note": "reset behaviour"},
+        "t2": {"inputs": "req=0001", "note": "single request"},
+        "t3": {"inputs": "req=0011", "note": "two requests asserted in the same cycle"},
+        "t4": {"inputs": "req=0100", "note": "single request"},
+        "t5": {"inputs": "req=1111", "note": "all requests asserted"},
+        "t6": {"inputs": "req=0000", "note": "no request"},
+        "t7": {"inputs": "req=1001", "note": "wrapped requests"}
+      },
+      "expected_decision": "cluster_1",
+      "candidates": [
+        {
+          "candidate_id": "c1",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] state;\n  always @(posedge clk) begin\n    if (reset) state <= 4'b0001;\n    else if (req == 4'b0000) state <= state;\n    else if (req[state]) state <= state;\n    else begin\n      state <= req & (~req + 1'b1);\n    end\n  end\n  assign grant = state & req;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}
+        },
+        {
+          "candidate_id": "c2",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] mask;\n  always @(posedge clk) begin\n    if (reset) begin\n      mask <= 4'b1111;\n    end else begin\n      mask <= req & (~req + 1'b1);\n    end\n  end\n  assign grant = req & mask;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}
+        },
+        {
+          "candidate_id": "c3",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] priority;\n  always @(posedge clk) begin\n    if (reset) priority <= 4'b0001;\n    else priority <= req & (~req + 1'b1);\n  end\n  assign grant = req & priority;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}
+        },
+        {
+          "candidate_id": "c4",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] selected;\n  always @(posedge clk) begin\n    if (reset) selected <= 4'b0001;\n    else if (req != 0) selected <= req & (~req + 1'b1);\n  end\n  assign grant = req & selected;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}
+        },
+        {
+          "candidate_id": "c5",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] chosen;\n  always @(posedge clk) begin\n    if (reset) chosen <= 4'b0001;\n    else casez (req)\n      4'b1???: chosen <= 4'b1000;\n      4'b01??: chosen <= 4'b0100;\n      4'b001?: chosen <= 4'b0010;\n      4'b0001: chosen <= 4'b0001;\n      default: chosen <= chosen;\n    endcase\n  end\n  assign grant = req & chosen;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0010", "t4": "0100", "t5": "1000", "t6": "0000", "t7": "1000"}
+        },
+        {
+          "candidate_id": "c6",
+          "compiled": true,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] hot;\n  always @(posedge clk) begin\n    if (reset) hot <= 4'b0001;\n    else if (req[3]) hot <= 4'b1000;\n    else if (req[2]) hot <= 4'b0100;\n    else if (req[1]) hot <= 4'b0010;\n    else if (req[0]) hot <= 4'b0001;\n  end\n  assign grant = req & hot;\nendmodule",
+          "outputs": {"t1": "0000", "t2": "0001", "t3": "0010", "t4": "0100", "t5": "1000", "t6": "0000", "t7": "1000"}
+        },
+        {
+          "candidate_id": "c7",
+          "compiled": false,
+          "source": "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  always @(posedge clk begin\n    grant <= req;\n  end\nendmodule",
+          "outputs": {}
+        }
+      ]
+    }
+  ]
+}

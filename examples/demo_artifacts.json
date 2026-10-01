@@ -1,0 +1,47 @@
+{
+  "note": "Precomputed outputs for the offline pipeline demo. Synthetic data only; no benchmark content.",
+  "mined_pairs": [
+    {
+      "a1": "reset is active-high and synchronous: when reset is 1, q is cleared to 0 on the next rising edge of clk.",
+      "a2": "reset is active-low and asynchronous: when reset is 0, q is cleared to 0 immediately.",
+      "defect_type": "contradictory",
+      "rationale": "The two clauses disagree on the reset polarity and on the reset timing."
+    },
+    {
+      "a1": "q saturates at 4'b1111 and does not wrap around.",
+      "a2": "q saturates at 4'b1111 and does not wrap around.",
+      "defect_type": "vague",
+      "rationale": "Standalone issue: overflow handling is underspecified."
+    }
+  ],
+  "repaired_spec": {
+    "source1": "Implement a 4-bit synchronous up counter.\n\n- q increments by one on every rising edge of clk.\n- reset is active-high and synchronous: when reset is 1, q is cleared to 0 on the next rising edge of clk.\n- q saturates at 4'b1111 and does not wrap around.",
+    "source2": "Implement a 4-bit synchronous up counter.\n\n- q increments by one on every rising edge of clk.\n- reset is active-low and asynchronous: when reset is 0, q is cleared to 0 immediately.\n- q saturates at 4'b1111 and does not wrap around.",
+    "irrelevant": "Implement a 4-bit synchronous up counter.\n\n- q increments by one on every rising edge of clk.\n- reset is active-high and synchronous: when reset is 1, q is cleared to 0 on the next rising edge of clk.\n- reset is active-low and asynchronous: when reset is 0, q is cleared to 0 immediately.\n- q saturates at 4'b1111 and does not wrap around."
+  },
+  "candidates": [
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] state;\n  always @(posedge clk) begin\n    if (reset) state <= 4'b0001;\n    else if (req == 4'b0000) state <= state;\n    else if (req[state]) state <= state;\n    else state <= req & (~req + 1'b1);\n  end\n  assign grant = state & req;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] mask;\n  always @(posedge clk) begin\n    if (reset) mask <= 4'b1111;\n    else mask <= req & (~req + 1'b1);\n  end\n  assign grant = req & mask;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] priority;\n  always @(posedge clk) begin\n    if (reset) priority <= 4'b0001;\n    else priority <= req & (~req + 1'b1);\n  end\n  assign grant = req & priority;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] selected;\n  always @(posedge clk) begin\n    if (reset) selected <= 4'b0001;\n    else if (req != 0) selected <= req & (~req + 1'b1);\n  end\n  assign grant = req & selected;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] chosen;\n  always @(posedge clk) begin\n    if (reset) chosen <= 4'b0001;\n    else casez (req)\n      4'b1???: chosen <= 4'b1000;\n      4'b01??: chosen <= 4'b0100;\n      4'b001?: chosen <= 4'b0010;\n      4'b0001: chosen <= 4'b0001;\n      default: chosen <= chosen;\n    endcase\n  end\n  assign grant = req & chosen;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  logic [3:0] hot;\n  always @(posedge clk) begin\n    if (reset) hot <= 4'b0001;\n    else if (req[3]) hot <= 4'b1000;\n    else if (req[2]) hot <= 4'b0100;\n    else if (req[1]) hot <= 4'b0010;\n    else if (req[0]) hot <= 4'b0001;\n  end\n  assign grant = req & hot;\nendmodule",
+    "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  always @(posedge clk begin\n    grant <= req;\n  end\nendmodule"
+  ],
+  "testbench": "// Synthetic offline testbench placeholder. The offline pipeline replays\n// precomputed simulation traces instead of running iverilog.\nmodule tb_TopModule;\n  initial begin\n    $display(\"[check] case=t1 grant=0000\");\n    $display(\"[check] case=t3 grant=0001\");\n    $finish;\n  end\nendmodule",
+  "simulation_results": [
+    {"candidate_id": "c1", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},
+    {"candidate_id": "c2", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},
+    {"candidate_id": "c3", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},
+    {"candidate_id": "c4", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},
+    {"candidate_id": "c5", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0010", "t4": "0100", "t5": "1000", "t6": "0000", "t7": "1000"}},
+    {"candidate_id": "c6", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0010", "t4": "0100", "t5": "1000", "t6": "0000", "t7": "1000"}},
+    {"candidate_id": "c7", "compiled": false, "outputs": {}}
+  ],
+  "expected": {
+    "spec_decision": "source1",
+    "sim_decision": "cluster_1",
+    "selected_candidate": "c1",
+    "distinguishing_test_case": "t3"
+  }
+}

@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+
+# Runtime output
+webui/decisions.json
+examples/demo_decisions.json
+examples/demo_trace.json
+saves/
+*.vvp
+*.vcd
