@@ -1,5 +1,8 @@
 # VClare
 
+This Repo is an opensourced implementation of VClare framework. The related paper 
+is recently accepted by Neurips workshop on AI for Chip Design.
+
 VClare is a repair framework for Verilog generation from imperfect hardware
 specifications. **Contradictions**, **incompleteness** and **vagueness** are
 common in hardware specifications and substantially reduce the correctness of
