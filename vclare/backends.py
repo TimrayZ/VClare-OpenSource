@@ -10,9 +10,9 @@ Two kinds of backend are defined:
     LLM response.
 
     The prompts shipped in this release live in :mod:`vclare.prompts` and cover
-    ``mine_inconsistency``, ``generate_candidates`` and ``generate_testbench``.
-    The prompt for ``repair_spec`` is intentionally not included; that method
-    raises by default and accepts an externally supplied prompt.
+    ``mine_inconsistency``, ``repair_spec``, ``generate_candidates`` and
+    ``generate_testbench``. The blind-fix prompt belongs to the Blind Fix
+    baseline and is not included.
 
 ``Simulator``
     Behavioral simulation of the generated candidates. ``IcarusSimulator``
@@ -31,6 +31,8 @@ from .llm import LLMClient, system_user
 from .prompts import (
     MINING_SYSTEM_PROMPT,
     MINING_USER_PROMPT,
+    REPAIR_SYSTEM_PROMPT,
+    REPAIR_USER_PROMPT,
     RTL_4_SHOT_EXAMPLES,
     TESTCASE_GENERATION_PROMPT,
     TESTCASE_OUTPUT_CONTRACT,
@@ -88,15 +90,13 @@ class OpenAIBackend:
         llm: LLMClient,
         mining_prompt: str = MINING_USER_PROMPT,
         mining_system_prompt: str = MINING_SYSTEM_PROMPT,
-        repair_prompt: str = None,
-        repair_system_prompt: str = "",
+        repair_prompt: str = REPAIR_USER_PROMPT,
+        repair_system_prompt: str = REPAIR_SYSTEM_PROMPT,
     ) -> None:
         """Create a backend.
 
-        ``mining_prompt`` defaults to the prompt shipped in
-        :mod:`vclare.prompts`. ``repair_prompt`` is not shipped with this
-        release; when it is omitted, the repair stage raises ``RuntimeError``
-        and the rest of the pipeline is unaffected.
+        ``mining_prompt`` and ``repair_prompt`` default to the prompts shipped
+        in :mod:`vclare.prompts`.
         """
         self.llm = llm
         self.calls: List[Dict[str, Any]] = []
@@ -135,9 +135,9 @@ class OpenAIBackend:
                 PROMPT_NOT_INCLUDED.format(stage="stage3_repair_spec")
             )
         if decision_value == "source1":
-            correct, wrong, cs, ws = pair.a1, pair.a2, "1", "2"
+            answer, believed, rejected = "source 1", pair.a1, pair.a2
         elif decision_value == "source2":
-            correct, wrong, cs, ws = pair.a2, pair.a1, "2", "1"
+            answer, believed, rejected = "source 2", pair.a2, pair.a1
         else:
             raise ValueError("unknown decision {!r}".format(decision_value))
 
@@ -145,11 +145,13 @@ class OpenAIBackend:
             "repair_spec",
             self.repair_system_prompt,
             self.repair_prompt.format(
-                spec=spec,
-                correct=correct,
-                wrong=wrong,
-                correct_source=cs,
-                wrong_source=ws,
+                index=pair.index,
+                src1=pair.a1,
+                src2=pair.a2,
+                ans=answer,
+                believed=believed,
+                rejected=rejected,
+                defective_spec=spec,
             ),
             0.0,
         )

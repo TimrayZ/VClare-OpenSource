@@ -9,15 +9,16 @@ Two prompt groups are provided:
 
 * ``MINING_*``: semantic inconsistency mining, used by
   ``stage1_mine_inconsistency``.
+* ``REPAIR_*``: targeted repair of a confirmed inconsistency, used by
+  ``stage3_repair_spec``.
 * ``VERILOG_*`` and ``RTL_4_SHOT_EXAMPLES``: Verilog RTL generation, used by
   ``stage4_generate_candidates``.
 * ``TESTCASE_GENERATION_PROMPT``: testbench testcase generation, used by
   ``stage5_generate_testbench``.
 
-The prompt for targeted specification repair (``stage3_repair_spec``) is
-intentionally not part of this release. That stage keeps its interface in
-:mod:`vclare.backends` and in :class:`vclare.spec_repair.SpecRepair`; users who
-need it can supply their own prompt.
+The blind-fix prompt (repairing a specification without any mined inconsistency)
+is not part of this release because it belongs to the Blind Fix baseline rather
+than to the VClare framework.
 
 The Verilog generation prompts are adapted from VerilogCoder:
 
@@ -57,6 +58,28 @@ MINING_USER_PROMPT = (
     "Identify exactly 3 potential self-inconsistencies in this hardware specification. "
     "Reason thoroughly, then emit the ```json block with full verbatim quotes.\n\n"
     "Specification:\n{spec}"
+)
+
+REPAIR_SYSTEM_PROMPT = (
+    "You are a hardware specification engineer. "
+    "Produce a corrected version of the given specification making only the minimal "
+    "necessary changes to fix identified issues. "
+    "Format: reasoning section first (outside any code blocks), then the corrected "
+    "specification inside a ```md code block."
+)
+
+REPAIR_USER_PROMPT = (
+    "The specification contains a known inconsistency.\n\n"
+    "Inconsistency #{index}:\n"
+    '  source 1: "{src1}"\n'
+    '  source 2: "{src2}"\n\n'
+    "Resolution: '{ans}' is correct.\n"
+    '  Correct statement  : "{believed}"\n'
+    '  Incorrect statement: "{rejected}"\n\n'
+    "Fix the specification so it consistently uses the correct statement, "
+    "making only the minimal necessary changes.\n\n"
+    "Original specification:\n{defective_spec}\n\n"
+    "Return reasoning then the corrected specification in a ```md code block."
 )
 
 VERILOG_SYSTEM_PROMPT = r"""

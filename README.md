@@ -474,14 +474,13 @@ The LLM prompts included in this release are collected in `vclare/prompts.py`:
 | Prompt | Stage | Purpose |
 | --- | --- | --- |
 | `MINING_SYSTEM_PROMPT`, `MINING_USER_PROMPT` | `stage1_mine_inconsistency` | Semantic inconsistency mining |
+| `REPAIR_SYSTEM_PROMPT`, `REPAIR_USER_PROMPT` | `stage3_repair_spec` | Targeted repair of a confirmed inconsistency pair |
 | `VERILOG_SYSTEM_PROMPT`, `VERILOG_GENERATION_PROMPT`, `VERILOG_EXTRA_ORDER_PROMPT`, `VERILOG_IF_PROMPT`, `RTL_4_SHOT_EXAMPLES` | `stage4_generate_candidates` | Verilog RTL generation, including four in-context examples |
 | `TESTCASE_GENERATION_PROMPT`, `TESTCASE_SYSTEM_PROMPT` | `stage5_generate_testbench` | Testcase generation |
 
-The prompt for targeted repair (`stage3_repair_spec`) is not part of this
-release. That stage keeps its interface: `SpecRepair.repair` and
-`OpenAIBackend.repair_spec` can be called, but an external `repair_prompt` has to
-be passed in explicitly; otherwise they raise `RuntimeError` naming the missing
-prompt.
+The blind-fix prompt used by the Blind Fix baseline (repairing a specification
+without any mined inconsistency) is not part of the VClare framework and is
+therefore not included in this repository.
 
 The Verilog generation prompts are adapted from VerilogCoder, and the
 attribution is kept in `vclare/prompts.py`.

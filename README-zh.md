@@ -1,5 +1,7 @@
 # VClare
 
+本仓库是 VClare 框架的开源实现。相关论文已被 NeurIPS Workshop on AI for Chip Design 接收。
+
 VClare 是一套面向"不完美硬件规格"（imperfect specification）的 Verilog 生成修复框架。
 硬件设计规格中常见的 **contradiction（矛盾）**、**incompleteness（不完整）** 和
 **vagueness（含糊）** 会显著降低 LLM 生成 RTL 的正确率。VClare 通过两条互补的路径
@@ -171,7 +173,7 @@ VClare-OpenSource/
 │   ├── sim_repair.py              Sim-Level Repair（聚类 + MBR + 分歧检测）
 │   ├── pipeline.py                多阶段 pipeline + result JSON 仲裁桥
 │   ├── backends.py                LLM 阶段与仿真器的可替换后端
-│   ├── prompts.py                 发布版包含的 LLM prompt（mining / RTL 生成 / testcase 生成）
+│   ├── prompts.py                 发布版包含的 LLM prompt（mining / targeted repair / RTL 生成 / testcase 生成）
 │   ├── llm.py                     最小 OpenAI 兼容客户端（仅标准库）
 │   └── iverilog/
 │       ├── score.py               golden testbench 判定
@@ -401,12 +403,12 @@ LLM 阶段（不一致挖掘、定向修复、候选生成、testbench 生成）
 | prompt | 对应阶段 | 说明 |
 | --- | --- | --- |
 | `MINING_SYSTEM_PROMPT`、`MINING_USER_PROMPT` | `stage1_mine_inconsistency` | 语义不一致挖掘 |
+| `REPAIR_SYSTEM_PROMPT`、`REPAIR_USER_PROMPT` | `stage3_repair_spec` | 针对已确认不一致对的定向修复 |
 | `VERILOG_SYSTEM_PROMPT`、`VERILOG_GENERATION_PROMPT`、`VERILOG_EXTRA_ORDER_PROMPT`、`VERILOG_IF_PROMPT`、`RTL_4_SHOT_EXAMPLES` | `stage4_generate_candidates` | Verilog RTL 生成，含 4-shot 示例 |
 | `TESTCASE_GENERATION_PROMPT`、`TESTCASE_SYSTEM_PROMPT` | `stage5_generate_testbench` | testcase 生成 |
 
-定向修复（`stage3_repair_spec`）的 prompt 不在发布内容中。该阶段保留接口：
-`SpecRepair.repair` 与 `OpenAIBackend.repair_spec` 都可以调用，但需要构造时显式传入
-`repair_prompt`，否则会抛出 `RuntimeError` 并说明缺少哪一个 prompt。
+Blind Fix 基线所用的"无任何不一致线索、直接修规格"的 prompt 不属于 VClare 框架，因此不随
+本仓库发布。
 
 Verilog 生成 prompt 改编自 VerilogCoder，`vclare/prompts.py` 中保留了引用信息。
 

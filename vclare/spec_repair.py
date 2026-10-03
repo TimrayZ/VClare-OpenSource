@@ -12,10 +12,9 @@ The pipeline follows three steps:
 3. ``repair`` asks the LLM for a constrained edit that rewrites only the
    statement the engineer marked as incorrect.
 
-The prompt used by ``mine`` is shipped in :mod:`vclare.prompts`. The prompt used
-by ``repair`` is intentionally not shipped in this release: ``repair`` keeps its
-interface and raises ``RuntimeError`` unless an external prompt is supplied
-through :class:`SpecRepair`.
+Both prompts used by this module (``mine`` and the targeted ``repair``) are
+shipped in :mod:`vclare.prompts`. The blind-fix prompt is not part of VClare and
+is therefore not included.
 """
 
 from __future__ import annotations
@@ -33,13 +32,16 @@ from .arbiter import (
     HumanArbiter,
 )
 from .llm import LLMClient, system_user
-from .prompts import MINING_SYSTEM_PROMPT, MINING_USER_PROMPT
+from .prompts import (
+    MINING_SYSTEM_PROMPT,
+    MINING_USER_PROMPT,
+    REPAIR_SYSTEM_PROMPT,
+    REPAIR_USER_PROMPT,
+)
 
 
 PROMPT_NOT_INCLUDED = (
-    "SpecRepair.{stage} is not runnable out of the box: the {stage} prompt is "
-    "intentionally not part of this release. Pass it explicitly, for example "
-    "SpecRepair(llm, {arg}=...)."
+    "SpecRepair.{stage} needs a prompt: pass {arg} explicitly to SpecRepair(...)."
 )
 
 
@@ -111,15 +113,13 @@ class SpecRepair:
         max_pairs: int = 3,
         mining_prompt: str = MINING_USER_PROMPT,
         mining_system_prompt: str = MINING_SYSTEM_PROMPT,
-        repair_prompt: str = None,
-        repair_system_prompt: str = "",
+        repair_prompt: str = REPAIR_USER_PROMPT,
+        repair_system_prompt: str = REPAIR_SYSTEM_PROMPT,
     ) -> None:
         """Create a Spec-Level Repair runner.
 
-        ``mining_prompt`` defaults to the prompt shipped in
-        :mod:`vclare.prompts`. ``repair_prompt`` is not shipped with this
-        release; supply it explicitly to run the repair step, otherwise
-        :meth:`repair` raises ``RuntimeError``.
+        ``mining_prompt`` and ``repair_prompt`` default to the prompts shipped
+        in :mod:`vclare.prompts`.
         """
         self.llm = llm
         self.max_pairs = max_pairs
@@ -217,19 +217,9 @@ class SpecRepair:
                 PROMPT_NOT_INCLUDED.format(stage="repair", arg="repair_prompt")
             )
         if decision.value == "source1":
-            correct, wrong, correct_source, wrong_source = (
-                pair.a1,
-                pair.a2,
-                "1",
-                "2",
-            )
+            answer, believed, rejected = "source 1", pair.a1, pair.a2
         elif decision.value == "source2":
-            correct, wrong, correct_source, wrong_source = (
-                pair.a2,
-                pair.a1,
-                "2",
-                "1",
-            )
+            answer, believed, rejected = "source 2", pair.a2, pair.a1
         else:
             raise ValueError("unknown arbitration value {!r}".format(decision.value))
 
@@ -237,11 +227,13 @@ class SpecRepair:
             system_user(
                 self.repair_system_prompt,
                 self.repair_prompt.format(
-                    spec=spec,
-                    correct=correct,
-                    wrong=wrong,
-                    correct_source=correct_source,
-                    wrong_source=wrong_source,
+                    index=pair.index,
+                    src1=pair.a1,
+                    src2=pair.a2,
+                    ans=answer,
+                    believed=believed,
+                    rejected=rejected,
+                    defective_spec=spec,
                 ),
             ),
             temperature=0.0,

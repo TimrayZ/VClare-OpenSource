@@ -43,13 +43,22 @@ class Candidate:
     compiled: bool = True
     meta: Dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def failed(self) -> bool:
+        """True when the candidate failed to compile or produced no output."""
+        if not self.compiled:
+            return True
+        if not self.outputs:
+            return True
+        return all(not str(value).strip() for value in self.outputs.values())
+
     def signature(self, test_cases: Sequence[str]) -> Tuple[str, ...]:
         if not self.compiled:
             return (FAILED,)
         return tuple(str(self.outputs.get(case, FAILED)) for case in test_cases)
 
     def output_for(self, test_case: str) -> str:
-        if not self.compiled:
+        if self.failed:
             return FAILED
         return str(self.outputs.get(test_case, FAILED))
 
@@ -98,7 +107,9 @@ class Cluster:
 
 
 def _disagree(left: Candidate, right: Candidate, tests: Sequence[str]) -> int:
-    if not left.compiled or not right.compiled:
+    if left is right:
+        return 0
+    if left.failed or right.failed:
         return 1
     return int(left.signature(tests) != right.signature(tests))
 
@@ -115,32 +126,51 @@ class SimRepair:
         if not candidates:
             return []
 
+        size = len(candidates)
+
+        def score_for(member: Candidate) -> int:
+            return size - sum(
+                _disagree(member, other, self.test_cases) for other in candidates
+            )
+
+        clusters: List[Cluster] = []
+
+        # Candidates that fail to compile or produce no output are each placed
+        # in a singleton cluster (paper Sec. 3.2.1).
+        for candidate in candidates:
+            if candidate.failed:
+                clusters.append(
+                    Cluster(
+                        cluster_id=len(clusters),
+                        members=[candidate],
+                        tests=self.test_cases,
+                        score=score_for(candidate),
+                        meta={"failed": True},
+                    )
+                )
+
+        # Candidates that simulated successfully are grouped by behavioral
+        # equivalence: identical outputs on all test cases.
         buckets: Dict[Tuple[str, ...], List[Candidate]] = {}
         for candidate in candidates:
+            if candidate.failed:
+                continue
             buckets.setdefault(candidate.signature(self.test_cases), []).append(
                 candidate
             )
 
-        size = len(candidates)
-        clusters: List[Cluster] = []
-        for cluster_id, members in enumerate(buckets.values()):
+        for members in buckets.values():
             # Score the cluster by its best member, matching MBR/VRank ranking.
-            member_scores = [
-                size
-                - sum(
-                    _disagree(member, other, self.test_cases)
-                    for other in candidates
+            member_scores = [score_for(member) for member in members]
+            clusters.append(
+                Cluster(
+                    cluster_id=len(clusters),
+                    members=members,
+                    tests=self.test_cases,
+                    score=max(member_scores),
+                    meta={"member_scores": member_scores},
                 )
-                for member in members
-            ]
-            cluster = Cluster(
-                cluster_id=cluster_id,
-                members=members,
-                tests=self.test_cases,
-                score=max(member_scores),
-                meta={"member_scores": member_scores},
             )
-            clusters.append(cluster)
 
         clusters.sort(key=lambda c: (c.score, c.size), reverse=True)
         return clusters
@@ -167,7 +197,7 @@ class SimRepair:
         defect_type: str = "",
     ) -> Optional[ArbitrationQuestion]:
         """Build the second VClare confirmation question, if a split exists."""
-        viable = [c for c in clusters if c.representative.compiled]
+        viable = [c for c in clusters if not c.representative.failed]
         if len(viable) < 2:
             return None
 

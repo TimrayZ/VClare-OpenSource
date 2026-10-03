@@ -71,6 +71,19 @@ class TestSimRepair(unittest.TestCase):
         sizes = sorted(cluster.size for cluster in clusters)
         self.assertEqual(sizes, [1, 2, 3])
 
+    def test_failed_candidates_each_form_a_singleton_cluster(self):
+        bad1 = candidate("bad1", {}, compiled=False)
+        bad2 = candidate("bad2", {}, compiled=False)
+        # compiled but produced no output -> also a failure
+        empty = candidate("empty", {}, compiled=True)
+        good = candidate("good", {"t1": "0", "t2": "0", "t3": "A"})
+
+        clusters = self.repair.cluster([good, bad1, bad2, empty])
+        self.assertEqual(len(clusters), 4, "each failure must be its own cluster")
+        failed = [c for c in clusters if c.representative.failed]
+        self.assertEqual(len(failed), 3)
+        self.assertTrue(all(c.size == 1 for c in failed))
+
     def test_mbr_ranking_orders_by_consistency(self):
         clusters = self.repair.cluster(self.candidates)
         scores = [cluster.score for cluster in clusters]
@@ -436,6 +449,12 @@ class _FakeMiningLLM(_FakeLLM):
         )
 
 
+class _FakeRepairLLM(_FakeLLM):
+    def chat(self, messages, temperature=0.0):
+        self.messages = messages
+        return "The conflicting clause is removed.\n```md\nfixed spec\n```"
+
+
 class TestReleasedPrompts(unittest.TestCase):
     """The release ships the Verilog generation and testcase prompts."""
 
@@ -490,10 +509,15 @@ class TestReleasedPrompts(unittest.TestCase):
         self.assertIn("Identify exactly 3 potential self-inconsistencies", user)
         self.assertIn("my spec", user)
 
-    def test_repair_prompt_is_not_shipped(self):
+    def test_repair_prompt_is_shipped(self):
         from vclare import prompts
 
-        self.assertFalse(hasattr(prompts, "REPAIR_USER_PROMPT"))
+        self.assertIn("known inconsistency", prompts.REPAIR_USER_PROMPT)
+        self.assertIn("minimal", prompts.REPAIR_SYSTEM_PROMPT)
+
+    def test_repair_uses_released_prompt(self):
+        fake = _FakeRepairLLM()
+        repair = SpecRepair(fake)
         decision = Decision(
             question_id="q1",
             kind=INCONSISTENCY_PAIR,
@@ -501,10 +525,17 @@ class TestReleasedPrompts(unittest.TestCase):
             value="source1",
             label="Source 1 is correct",
         )
-        with self.assertRaises(RuntimeError):
-            SpecRepair().repair(
-                "spec", InconsistencyPair(a1="a", a2="b"), decision
-            )
+        result = repair.repair(
+            "spec body",
+            InconsistencyPair(a1="A", a2="B", index=1),
+            decision,
+        )
+        self.assertEqual(result, "fixed spec")
+        user = fake.messages[1]["content"]
+        self.assertIn("Resolution: 'source 1' is correct", user)
+        self.assertIn('Correct statement  : "A"', user)
+        self.assertIn('Incorrect statement: "B"', user)
+        self.assertIn("spec body", user)
 
     def test_candidate_generation_uses_released_templates(self):
         fake = _FakeLLM()
