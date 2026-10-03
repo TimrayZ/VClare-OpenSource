@@ -45,6 +45,7 @@ STAGES: Sequence[str] = (
     "stage4_generate_candidates",
     "stage4e_evaluate_golden_tb",
     "stage5_generate_testbench",
+    "stage5e_add_extra_testcases",
     "stage6_simulate_and_cluster",
     "stage7_rank_mbr",
     "stage8_arbitrate_divergence",
@@ -64,6 +65,7 @@ MODE_STAGES: Dict[str, Sequence[str]] = {
         "stage4_generate_candidates",
         "stage4e_evaluate_golden_tb",
         "stage5_generate_testbench",
+        "stage5e_add_extra_testcases",
         "stage6_simulate_and_cluster",
         "stage7_rank_mbr",
         "stage8_arbitrate_divergence",
@@ -507,6 +509,36 @@ class VClarePipeline:
         )
         self.context["testbench"] = testbench
         return {"testbench_chars": len(testbench), "testbench": testbench}
+
+    def stage5e_add_extra_testcases(self) -> Dict[str, Any]:
+        """Append additional testcases, because the specification may be flawed.
+
+        Mirrors the extra-testcase pass of the research harness: the base
+        testbench is sent back to the LLM, which returns 2-4 additional
+        testcases in the same task format, and the result is appended before
+        simulation and clustering.
+        """
+        base = self.context.get("testbench", "")
+        if not base:
+            return {"skipped": "no base testbench to extend"}
+
+        # The base testbench already consumes raw_testcases1..N; the harness
+        # names additional blocks from the running counter. The exact number of
+        # base testcases is not tracked here, so start at 2 for the first batch.
+        batch = int(self.context.get("num_extra_testcase_batches", 0))
+        extra = self.backend.generate_extra_testcases(
+            self._active_spec(), base, start_index=2 + batch
+        )
+        if not extra:
+            return {"skipped": "backend returned no additional testcases"}
+
+        self.context["extra_testcases"] = extra
+        self.context["testbench"] = base.rstrip() + "\n\n" + extra.strip() + "\n"
+        self.context["num_extra_testcase_batches"] = batch + 1
+        return {
+            "extra_testcases": extra,
+            "testbench_chars": len(self.context["testbench"]),
+        }
 
     def stage6_simulate_and_cluster(self) -> Dict[str, Any]:
         candidates = [

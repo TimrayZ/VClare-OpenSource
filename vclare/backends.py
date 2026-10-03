@@ -29,6 +29,8 @@ from typing import Any, Dict, List, Protocol, Sequence
 from .iverilog import IverilogSimulator
 from .llm import LLMClient, system_user
 from .prompts import (
+    EXTRA_TESTCASE_PROMPT,
+    EXTRA_TESTCASE_SYSTEM_PROMPT,
     MINING_SYSTEM_PROMPT,
     MINING_USER_PROMPT,
     REPAIR_SYSTEM_PROMPT,
@@ -78,6 +80,14 @@ class LLMBackend(Protocol):
         candidates: Sequence[str],
         module_name: str = "TopModule",
         module_interface: str = "",
+    ) -> str:
+        ...
+
+    def generate_extra_testcases(
+        self,
+        spec: str,
+        testbench: str,
+        start_index: int = 1,
     ) -> str:
         ...
 
@@ -202,6 +212,26 @@ class OpenAIBackend:
         fenced = re.search(r"```(?:verilog|sv|systemverilog)?\s*\n(.*?)```", raw, re.DOTALL)
         return fenced.group(1).strip() if fenced else raw.strip()
 
+    def generate_extra_testcases(
+        self,
+        spec: str,
+        testbench: str,
+        start_index: int = 1,
+    ) -> str:
+        prompt = EXTRA_TESTCASE_PROMPT.format(
+            next_raw_name="raw_testcases{}".format(start_index),
+            specification=spec,
+            tb_content=testbench,
+        )
+        raw = self._call(
+            "generate_extra_testcases",
+            EXTRA_TESTCASE_SYSTEM_PROMPT,
+            prompt,
+            0.0,
+        )
+        fenced = re.search(r"```(?:verilog|sv|systemverilog)?\s*\n(.*?)```", raw, re.DOTALL)
+        return fenced.group(1).strip() if fenced else raw.strip()
+
 
 class OfflineBackend:
     """Replay precomputed LLM outputs so the pipeline runs without an API key.
@@ -243,6 +273,14 @@ class OfflineBackend:
     ) -> str:
         return str(self.artifacts.get("testbench", ""))
 
+    def generate_extra_testcases(
+        self,
+        spec: str,
+        testbench: str,
+        start_index: int = 1,
+    ) -> str:
+        return str(self.artifacts.get("extra_testcases", ""))
+
 
 class DisabledBackend:
     """Explicit backend for runs that only exercise the interface.
@@ -280,6 +318,14 @@ class DisabledBackend:
         module_interface: str = "",
     ):
         self._fail("generate_testbench")
+
+    def generate_extra_testcases(
+        self,
+        spec: str,
+        testbench: str,
+        start_index: int = 1,
+    ):
+        self._fail("generate_extra_testcases")
 
 
 class Simulator(Protocol):

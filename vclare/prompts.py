@@ -15,6 +15,8 @@ Two prompt groups are provided:
   ``stage4_generate_candidates``.
 * ``TESTCASE_GENERATION_PROMPT``: testbench testcase generation, used by
   ``stage5_generate_testbench``.
+* ``EXTRA_TESTCASE_PROMPT``: additional testcases appended after the base
+  testbench, used by ``stage5e_add_extra_testcases``.
 
 The blind-fix prompt (repairing a specification without any mined inconsistency)
 is not part of this release because it belongs to the Blind Fix baseline rather
@@ -328,6 +330,30 @@ NOTE: only output the parts related to the testcases, no need to embed them in t
 TESTCASE_SYSTEM_PROMPT = (
     "You are an expert in Verilog testbench generation. "
     "Generate comprehensive test cases."
+)
+
+EXTRA_TESTCASE_SYSTEM_PROMPT = (
+    "You are an expert in Verilog testbench generation. "
+    "Provide only additional testcase blocks."
+)
+
+EXTRA_TESTCASE_PROMPT = (
+    "I will give you a circuit specification and a Verilog testbench containing multiple testcases.\n"
+    "The original module specification may be flawed or incomplete, or have contradictory information. Please examine the testcases in the testbench\n"
+    "Insert 2-4 additional testcases that follow the same structure as existing ones. Reply ONLY with task definitions (no initial/module/endmodule and no task calls),"
+    " and name tasks using raw_testcases numbering starting from {next_raw_name}."
+    " Do NOT use task names testcases1/testcases2/etc."
+    " Do NOT change other parts of the testbench. For sequential circuits ensure each added testcase begins with `reset_dut();` if applicable.\n\n"
+    "Each task MUST end with a single $display line that prints inputs first, then outputs.\n"
+    "The display format MUST follow this pattern (use % as format placeholder):\n"
+    "$display(\"[check] <IN1>: %<fmt>, <IN2>: %<fmt>, <OUT1>: %<fmt>, ...\", IN1, IN2, OUT1, ...);\n"
+    "Example: $display(\"[check] y: %h, w: %b, Y2: %b, Y4: %b\", y, w, Y2, Y4);\n"
+    "Use %b, %h, etc. as appropriate for each signal.\n"
+    "Only reply with Verilog code (the testcases) between ```verilog and ```.\n\n"
+    "Specification:\n"
+    "{specification}\n\n"
+    "Current testbench:\n"
+    "{tb_content}\n"
 )
 
 # Appended by PipelineFull.stagex1_direct_testcases_generation after the base

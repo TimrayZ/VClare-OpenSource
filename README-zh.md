@@ -291,10 +291,11 @@ result JSON，两个确认点则通过 JSON 文件与人工界面交接。
 | 5 | `stage4_generate_candidates` | LLM | 采样 N 个候选实现 |
 | 6 | `stage4e_evaluate_golden_tb` | EDA（可选） | 对候选运行 golden testbench，缺省跳过 |
 | 7 | `stage5_generate_testbench` | LLM | 生成自动 testbench |
-| 8 | `stage6_simulate_and_cluster` | EDA | iverilog 仿真 + 行为聚类 |
-| 9 | `stage7_rank_mbr` | local | MBR 一致性排序 |
-| 10 | `stage8_arbitrate_divergence` | **human** | 在首个分歧 test case 上确认行为 |
-| 11 | `stage9_select_and_report` | local | 选出实现并汇总结果 |
+| 8 | `stage5e_add_extra_testcases` | LLM | 追加 2-4 个 testcase（规格可能有缺陷，需要额外覆盖） |
+| 9 | `stage6_simulate_and_cluster` | EDA | iverilog 仿真 + 行为聚类 |
+| 10 | `stage7_rank_mbr` | local | MBR 一致性排序 |
+| 11 | `stage8_arbitrate_divergence` | **human** | 在首个分歧 test case 上确认行为 |
+| 12 | `stage9_select_and_report` | local | 选出实现并汇总结果 |
 
 `--mode spec` 只运行 Spec-Level 相关阶段，`--mode sim` 只运行 Sim-Level 相关阶段，
 `--mode hybrid` 运行完整流程。
@@ -311,7 +312,7 @@ saves/experiments/run_001/
 ├── cycles/
 │   ├── cycle_01_stage0_load_input.json
 │   ├── ...
-│   └── cycle_11_stage9_select_and_report.json
+│   └── cycle_12_stage9_select_and_report.json
 └── run_result.json               最终结果与完整 context
 ```
 
@@ -406,6 +407,7 @@ LLM 阶段（不一致挖掘、定向修复、候选生成、testbench 生成）
 | `REPAIR_SYSTEM_PROMPT`、`REPAIR_USER_PROMPT` | `stage3_repair_spec` | 针对已确认不一致对的定向修复 |
 | `VERILOG_SYSTEM_PROMPT`、`VERILOG_GENERATION_PROMPT`、`VERILOG_EXTRA_ORDER_PROMPT`、`VERILOG_IF_PROMPT`、`RTL_4_SHOT_EXAMPLES` | `stage4_generate_candidates` | Verilog RTL 生成，含 4-shot 示例 |
 | `TESTCASE_GENERATION_PROMPT`、`TESTCASE_SYSTEM_PROMPT` | `stage5_generate_testbench` | testcase 生成 |
+| `EXTRA_TESTCASE_PROMPT`、`EXTRA_TESTCASE_SYSTEM_PROMPT` | `stage5e_add_extra_testcases` | 追加 2-4 个 testcase |
 
 Blind Fix 基线所用的"无任何不一致线索、直接修规格"的 prompt 不属于 VClare 框架，因此不随
 本仓库发布。

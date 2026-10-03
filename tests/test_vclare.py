@@ -358,6 +358,19 @@ class TestPipeline(unittest.TestCase):
             snapshot = json.loads(files[0].read_text(encoding="utf-8"))
             self.assertEqual(snapshot["data"]["skipped"], "no golden testbench provided")
 
+    def test_extra_testcase_stage_appends_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pipeline, _ = self.make_pipeline(tmp, policy="fallback")
+            run = pipeline.run()
+            self.assertEqual(run.status, "completed")
+            context = json.loads(
+                Path(run.result_path).read_text(encoding="utf-8")
+            )["context"]
+            self.assertIn("raw_testcases2", context["extra_testcases"])
+            self.assertIn("raw_testcases2", context["testbench"])
+            files = list((Path(tmp) / "cycles").glob("*stage5e*.json"))
+            self.assertEqual(len(files), 1)
+
 
 class TestIverilogAdapter(unittest.TestCase):
     """Fidelity checks for the original iverilog path.
@@ -564,6 +577,27 @@ class TestReleasedPrompts(unittest.TestCase):
         self.assertIn("module TopModule();", user)
         self.assertIn("Strict output contract for integration", user)
         self.assertIn("[check]", user)
+
+    def test_extra_testcase_prompt_is_shipped(self):
+        from vclare import prompts
+
+        self.assertIn(
+            "Insert 2-4 additional testcases", prompts.EXTRA_TESTCASE_PROMPT
+        )
+        self.assertIn(
+            "Provide only additional testcase blocks",
+            prompts.EXTRA_TESTCASE_SYSTEM_PROMPT,
+        )
+
+    def test_extra_testcase_generation_uses_released_template(self):
+        fake = _FakeLLM()
+        backend = OpenAIBackend(fake)
+        backend.generate_extra_testcases("my spec", "current tb", start_index=2)
+        user = fake.messages[1]["content"]
+        self.assertIn("Insert 2-4 additional testcases", user)
+        self.assertIn("starting from raw_testcases2", user)
+        self.assertIn("my spec", user)
+        self.assertIn("current tb", user)
 
 
 if __name__ == "__main__":

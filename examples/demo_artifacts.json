@@ -29,6 +29,7 @@
     "module TopModule(input logic clk, input logic reset, input logic [3:0] req, output logic [3:0] grant);\n  always @(posedge clk begin\n    grant <= req;\n  end\nendmodule"
   ],
   "testbench": "// Synthetic offline testbench placeholder. The offline pipeline replays\n// precomputed simulation traces instead of running iverilog.\nmodule tb_TopModule;\n  initial begin\n    $display(\"[check] case=t1 grant=0000\");\n    $display(\"[check] case=t3 grant=0001\");\n    $finish;\n  end\nendmodule",
+  "extra_testcases": "task raw_testcases2;\n  begin\n    $display(\"[check] t8: req=0110, grant=0010\");\n  end\nendtask",
   "simulation_results": [
     {"candidate_id": "c1", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},
     {"candidate_id": "c2", "compiled": true, "outputs": {"t1": "0000", "t2": "0001", "t3": "0001", "t4": "0100", "t5": "0001", "t6": "0000", "t7": "0001"}},

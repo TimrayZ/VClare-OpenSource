@@ -356,10 +356,11 @@ files.
 | 5 | `stage4_generate_candidates` | LLM | Sample N candidate implementations |
 | 6 | `stage4e_evaluate_golden_tb` | EDA (optional) | Run candidates against the golden testbench; skipped by default |
 | 7 | `stage5_generate_testbench` | LLM | Generate the automated testbench |
-| 8 | `stage6_simulate_and_cluster` | EDA | iverilog simulation + behavioral clustering |
-| 9 | `stage7_rank_mbr` | local | MBR consistency ranking |
-| 10 | `stage8_arbitrate_divergence` | **human** | Confirm behavior on the first diverging test case |
-| 11 | `stage9_select_and_report` | local | Select the implementation and summarize results |
+| 8 | `stage5e_add_extra_testcases` | LLM | Append 2-4 extra testcases (the specification may be defective and need more coverage) |
+| 9 | `stage6_simulate_and_cluster` | EDA | iverilog simulation + behavioral clustering |
+| 10 | `stage7_rank_mbr` | local | MBR consistency ranking |
+| 11 | `stage8_arbitrate_divergence` | **human** | Confirm behavior on the first diverging test case |
+| 12 | `stage9_select_and_report` | local | Select the implementation and summarize results |
 
 `--mode spec` runs only the Spec-Level stages, `--mode sim` runs only the
 Sim-Level stages, and `--mode hybrid` runs the full flow.
@@ -376,7 +377,7 @@ saves/experiments/run_001/
 ├── cycles/
 │   ├── cycle_01_stage0_load_input.json
 │   ├── ...
-│   └── cycle_11_stage9_select_and_report.json
+│   └── cycle_12_stage9_select_and_report.json
 └── run_result.json               Final result and full context
 ```
 
@@ -477,6 +478,7 @@ The LLM prompts included in this release are collected in `vclare/prompts.py`:
 | `REPAIR_SYSTEM_PROMPT`, `REPAIR_USER_PROMPT` | `stage3_repair_spec` | Targeted repair of a confirmed inconsistency pair |
 | `VERILOG_SYSTEM_PROMPT`, `VERILOG_GENERATION_PROMPT`, `VERILOG_EXTRA_ORDER_PROMPT`, `VERILOG_IF_PROMPT`, `RTL_4_SHOT_EXAMPLES` | `stage4_generate_candidates` | Verilog RTL generation, including four in-context examples |
 | `TESTCASE_GENERATION_PROMPT`, `TESTCASE_SYSTEM_PROMPT` | `stage5_generate_testbench` | Testcase generation |
+| `EXTRA_TESTCASE_PROMPT`, `EXTRA_TESTCASE_SYSTEM_PROMPT` | `stage5e_add_extra_testcases` | Append 2-4 additional testcases |
 
 The blind-fix prompt used by the Blind Fix baseline (repairing a specification
 without any mined inconsistency) is not part of the VClare framework and is
